@@ -1,0 +1,556 @@
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "name": "WhatsApp Booking Bot — Pensiunea Stejarul",
+  "active": true,
+  "nodes": [
+    {
+      "id": "node-webhook-inbound",
+      "name": "WhatsApp Inbound Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "whatsapp-inbound-stejarul",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-inbound",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      }
+    },
+    {
+      "id": "node-verify-get",
+      "name": "Handle GET Verification",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-1",
+              "leftValue": "={{ $json.query['hub.mode'] }}",
+              "rightValue": "subscribe",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "node-respond-verify",
+      "name": "Respond to Meta Verification",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 180],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $('WhatsApp Inbound Webhook').item.json.query['hub.challenge'] }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "node-parse-message",
+      "name": "Parse WhatsApp Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 380],
+      "parameters": {
+        "jsCode": "// Extract the inbound message from the Meta webhook payload.\n// Meta sends a nested structure: body.entry[0].changes[0].value.messages[0]\nconst body = $input.item.json.body;\n\nlet messageText = null;\nlet senderPhone = null;\nlet phoneNumberId = null;\nlet messageId = null;\n\ntry {\n  const entry = body.entry?.[0];\n  const change = entry?.changes?.[0];\n  const value = change?.value;\n  const message = value?.messages?.[0];\n  const contact = value?.contacts?.[0];\n\n  messageText = message?.text?.body || message?.interactive?.button_reply?.title || null;\n  senderPhone = message?.from || null;\n  phoneNumberId = value?.metadata?.phone_number_id || null;\n  messageId = message?.id || null;\n} catch (e) {\n  // Payload parsing failed — return empty so downstream IF node drops it\n}\n\nreturn [\n  {\n    json: {\n      messageText,\n      senderPhone,\n      phoneNumberId,\n      messageId,\n      rawBody: body\n    }\n  }\n];"
+      }
+    },
+    {
+      "id": "node-check-message",
+      "name": "Check Message Exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 380],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-2",
+              "leftValue": "={{ $json.messageText }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "node-respond-ack",
+      "name": "ACK to Meta (200 OK)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 520],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"ignored\"}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "node-fetch-client",
+      "name": "Fetch Client from Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/clients",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "whatsapp_phone_number_id",
+              "value": "=eq.{{ $json.phoneNumberId }}"
+            },
+            {
+              "name": "is_active",
+              "value": "=eq.true"
+            },
+            {
+              "name": "select",
+              "value": "id,hotel_name,owner_wa_number,wa_access_token,system_prompt,whatsapp_phone_number_id"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-set-context",
+      "name": "Set Claude Context",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1340, 300],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-1",
+              "name": "clientId",
+              "value": "={{ $json[0].id }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-2",
+              "name": "systemPrompt",
+              "value": "={{ $json[0].system_prompt }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-3",
+              "name": "waAccessToken",
+              "value": "={{ $json[0].wa_access_token }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-4",
+              "name": "phoneNumberId",
+              "value": "={{ $json[0].whatsapp_phone_number_id }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-5",
+              "name": "senderPhone",
+              "value": "={{ $('Parse WhatsApp Message').item.json.senderPhone }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-6",
+              "name": "userMessage",
+              "value": "={{ $('Parse WhatsApp Message').item.json.messageText }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-claude-api",
+      "name": "Claude — Generate Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-opus-4-5\",\n  \"max_tokens\": 1024,\n  \"system\": {{ JSON.stringify($json.systemPrompt) }},\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($json.userMessage) }}\n    }\n  ]\n}",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-extract-reply",
+      "name": "Extract Claude Reply Text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1780, 300],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-reply-1",
+              "name": "replyText",
+              "value": "={{ $json.content[0].text }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-reply-2",
+              "name": "tokensUsed",
+              "value": "={{ $json.usage.input_tokens + $json.usage.output_tokens }}",
+              "type": "number"
+            },
+            {
+              "id": "assign-reply-3",
+              "name": "senderPhone",
+              "value": "={{ $('Set Claude Context').item.json.senderPhone }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-reply-4",
+              "name": "waAccessToken",
+              "value": "={{ $('Set Claude Context').item.json.waAccessToken }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-reply-5",
+              "name": "phoneNumberId",
+              "value": "={{ $('Set Claude Context').item.json.phoneNumberId }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-reply-6",
+              "name": "clientId",
+              "value": "={{ $('Set Claude Context').item.json.clientId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-send-whatsapp",
+      "name": "Send WhatsApp Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $json.phoneNumberId }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.waAccessToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json.senderPhone }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": {{ JSON.stringify($json.replyText) }}\n  }\n}",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-log-supabase",
+      "name": "Log Message to Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"client_id\": \"{{ $('Extract Claude Reply Text').item.json.clientId }}\",\n  \"direction\": \"outbound\",\n  \"content\": {{ JSON.stringify($('Extract Claude Reply Text').item.json.replyText) }},\n  \"claude_tokens_used\": {{ $('Extract Claude Reply Text').item.json.tokensUsed }}\n}",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-respond-ok",
+      "name": "Respond 200 OK to Meta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2440, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\":\"ok\"}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "node-error-handler",
+      "name": "Error Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 520],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $env.OWNER_PHONE_NUMBER_ID }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.META_OWNER_ACCESS_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $env.OWNER_WA_NUMBER }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"⚠️ Eroare în botul de rezervări AutoPilot:\\n{{ $json.message }}\\n\\nVerifică n8n la localhost:5678 pentru detalii.\"\n  }\n}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "WhatsApp Inbound Webhook": {
+      "main": [
+        [
+          {
+            "node": "Handle GET Verification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle GET Verification": {
+      "main": [
+        [
+          {
+            "node": "Respond to Meta Verification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse WhatsApp Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse WhatsApp Message": {
+      "main": [
+        [
+          {
+            "node": "Check Message Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Message Exists": {
+      "main": [
+        [
+          {
+            "node": "Fetch Client from Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ACK to Meta (200 OK)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Client from Supabase": {
+      "main": [
+        [
+          {
+            "node": "Set Claude Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Claude Context": {
+      "main": [
+        [
+          {
+            "node": "Claude — Generate Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude — Generate Reply": {
+      "main": [
+        [
+          {
+            "node": "Extract Claude Reply Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Claude Reply Text": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Reply": {
+      "main": [
+        [
+          {
+            "node": "Log Message to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Message to Supabase": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 OK to Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "",
+    "timezone": "Europe/Bucharest"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "id": "tag-whatsapp",
+      "name": "whatsapp"
+    },
+    {
+      "id": "tag-booking",
+      "name": "booking"
+    },
+    {
+      "id": "tag-claude",
+      "name": "claude"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "createdAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "v1-whatsapp-booking-bot"
+}

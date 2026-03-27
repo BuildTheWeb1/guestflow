@@ -1,0 +1,91 @@
+version: '3.8'
+
+networks:
+  autopilot-net:
+    driver: bridge
+
+volumes:
+  n8n_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./n8n-data
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./postgres-data
+
+services:
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: autopilot-postgres
+    restart: unless-stopped
+    networks:
+      - autopilot-net
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: n8n
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d n8n"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: autopilot-n8n
+    restart: unless-stopped
+    networks:
+      - autopilot-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5678:5678"
+    environment:
+      # ── Database ──────────────────────────────────────────────────────────
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=${POSTGRES_USER}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+
+      # ── n8n Core ──────────────────────────────────────────────────────────
+      # N8N_HOST must be 0.0.0.0 so the container listens on all interfaces
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      # WEBHOOK_URL tells n8n which public base URL to use for webhook registration.
+      # This MUST point to your ngrok static domain so Meta/Google can reach it.
+      - WEBHOOK_URL=https://${NGROK_STATIC_DOMAIN}/
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+
+      # ── Auth ──────────────────────────────────────────────────────────────
+      # Disabled for local demo. Enable if you share your screen with the
+      # prospect and want to avoid exposing credentials in the UI.
+      - N8N_BASIC_AUTH_ACTIVE=false
+
+      # ── Timezone ──────────────────────────────────────────────────────────
+      - GENERIC_TIMEZONE=Europe/Bucharest
+      - TZ=Europe/Bucharest
+
+      # ── Execution logging (keep everything for demo debugging) ────────────
+      - EXECUTIONS_DATA_SAVE_ON_ERROR=all
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
+      - EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS=true
+      - EXECUTIONS_DATA_MAX_AGE=168        # keep 7 days of logs (hours)
+      - EXECUTIONS_DATA_PRUNE=true
+
+      # ── Queue mode (disabled — demo uses regular/main mode) ───────────────
+      # For production add: EXECUTIONS_MODE=queue + Redis service
+    volumes:
+      - n8n_data:/home/node/.n8n

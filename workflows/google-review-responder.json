@@ -1,0 +1,438 @@
+{
+  "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+  "name": "Google Review Responder — Pensiunea Stejarul",
+  "active": false,
+  "nodes": [
+    {
+      "id": "node-manual-trigger",
+      "name": "Manual Trigger (Demo)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {}
+    },
+    {
+      "id": "node-schedule-trigger",
+      "name": "Schedule — Nightly 02:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 460],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 2 * * *"
+            }
+          ]
+        },
+        "timezone": "Europe/Bucharest"
+      }
+    },
+    {
+      "id": "node-set-demo-review",
+      "name": "Inject Demo Review (or call GMB API)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 300],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-demo-1",
+              "name": "reviewId",
+              "value": "demo-review-001",
+              "type": "string"
+            },
+            {
+              "id": "assign-demo-2",
+              "name": "reviewerName",
+              "value": "Andrei Popescu",
+              "type": "string"
+            },
+            {
+              "id": "assign-demo-3",
+              "name": "starRating",
+              "value": "FOUR",
+              "type": "string"
+            },
+            {
+              "id": "assign-demo-4",
+              "name": "reviewComment",
+              "value": "Pensiune frumoasă și curată, în centrul Sinaiei. Micul dejun a fost delicios și gazda foarte prietenoasă. Singura observație: camera era puțin mică pentru 3 persoane. Vom reveni cu siguranță!",
+              "type": "string"
+            },
+            {
+              "id": "assign-demo-5",
+              "name": "reviewDate",
+              "value": "=2024-01-14T18:30:00Z",
+              "type": "string"
+            },
+            {
+              "id": "assign-demo-6",
+              "name": "hasReply",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "assign-demo-7",
+              "name": "hotelName",
+              "value": "Pensiunea Stejarul",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "notes": "DEMO MODE: Review is hardcoded here. For production, replace this node with an HTTP Request to the Google My Business API:\nGET https://mybusiness.googleapis.com/v4/accounts/{accountId}/locations/{locationId}/reviews\nUse the Google OAuth2 credential type in n8n. Subscribe to the 'messages' scope."
+    },
+    {
+      "id": "node-check-has-reply",
+      "name": "Already Has Reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-reply-1",
+              "leftValue": "={{ $json.hasReply }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "node-skip-reviewed",
+      "name": "Skip — Already Replied",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [900, 180],
+      "parameters": {}
+    },
+    {
+      "id": "node-build-prompt",
+      "name": "Build Review Prompt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [900, 380],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-prompt-1",
+              "name": "userPrompt",
+              "value": "=Recenzie Google pentru {{ $json.hotelName }}:\n\nNume recenzent: {{ $json.reviewerName }}\nStele: {{ $json.starRating }}\nData: {{ $json.reviewDate }}\n\nTextul recenziei:\n\"{{ $json.reviewComment }}\"\n\nScrie un răspuns profesional de maximum 150 de cuvinte în română. Răspunsul va fi postat public pe Google Maps.",
+              "type": "string"
+            },
+            {
+              "id": "assign-prompt-2",
+              "name": "reviewId",
+              "value": "={{ $json.reviewId }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-prompt-3",
+              "name": "reviewerName",
+              "value": "={{ $json.reviewerName }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-prompt-4",
+              "name": "starRating",
+              "value": "={{ $json.starRating }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-prompt-5",
+              "name": "reviewComment",
+              "value": "={{ $json.reviewComment }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-claude-review",
+      "name": "Claude — Draft Review Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 380],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-opus-4-5\",\n  \"max_tokens\": 512,\n  \"system\": \"Ești managerul Pensiunii Stejarul din Sinaia. Scrii răspunsuri la recenziile Google în numele pensiunii. Tonul este profesional, cald și autentic. Răspunzi întotdeauna în limba recenziei (română sau engleză). Adresezi specific punctele menționate în recenzie. Nu ești defensiv — dacă există critici, le recunoști cu grație și menționezi îmbunătățirile. Închei întotdeauna cu o invitație de a reveni.\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($json.userPrompt) }}\n    }\n  ]\n}",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-extract-review-reply",
+      "name": "Extract Reply Text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1340, 380],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-ext-1",
+              "name": "draftReply",
+              "value": "={{ $json.content[0].text }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-ext-2",
+              "name": "tokensUsed",
+              "value": "={{ $json.usage.input_tokens + $json.usage.output_tokens }}",
+              "type": "number"
+            },
+            {
+              "id": "assign-ext-3",
+              "name": "reviewId",
+              "value": "={{ $('Build Review Prompt').item.json.reviewId }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-ext-4",
+              "name": "reviewerName",
+              "value": "={{ $('Build Review Prompt').item.json.reviewerName }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-ext-5",
+              "name": "starRating",
+              "value": "={{ $('Build Review Prompt').item.json.starRating }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-send-wa-draft",
+      "name": "Send Draft to Owner via WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 380],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $env.OWNER_PHONE_NUMBER_ID }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.META_OWNER_ACCESS_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $env.OWNER_WA_NUMBER }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"📝 *Răspuns draft Google Review*\\n\\n👤 Recenzent: {{ $json.reviewerName }}\\n⭐ Rating: {{ $json.starRating }}\\n\\n✉️ *Răspuns propus:*\\n\\n{{ $json.draftReply }}\\n\\n---\\nAprobați și postați manual în Google My Business sau răspundeți APROB pentru postare automată.\"\n  }\n}",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-log-review-supabase",
+      "name": "Log to Supabase audit_log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 380],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/audit_log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"workflow_name\": \"google-review-responder\",\n  \"event_type\": \"review_draft_sent\",\n  \"payload\": {\n    \"review_id\": {{ JSON.stringify($('Extract Reply Text').item.json.reviewId) }},\n    \"reviewer\": {{ JSON.stringify($('Extract Reply Text').item.json.reviewerName) }},\n    \"rating\": {{ JSON.stringify($('Extract Reply Text').item.json.starRating) }},\n    \"tokens_used\": {{ $('Extract Reply Text').item.json.tokensUsed }},\n    \"draft_preview\": {{ JSON.stringify($('Extract Reply Text').item.json.draftReply.substring(0, 100)) }}\n  }\n}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger (Demo)": {
+      "main": [
+        [
+          {
+            "node": "Inject Demo Review (or call GMB API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule — Nightly 02:00": {
+      "main": [
+        [
+          {
+            "node": "Inject Demo Review (or call GMB API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inject Demo Review (or call GMB API)": {
+      "main": [
+        [
+          {
+            "node": "Already Has Reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Has Reply?": {
+      "main": [
+        [
+          {
+            "node": "Skip — Already Replied",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Review Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Review Prompt": {
+      "main": [
+        [
+          {
+            "node": "Claude — Draft Review Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude — Draft Review Reply": {
+      "main": [
+        [
+          {
+            "node": "Extract Reply Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Reply Text": {
+      "main": [
+        [
+          {
+            "node": "Send Draft to Owner via WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Draft to Owner via WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Log to Supabase audit_log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Europe/Bucharest"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "id": "tag-google",
+      "name": "google-reviews"
+    },
+    {
+      "id": "tag-claude",
+      "name": "claude"
+    },
+    {
+      "id": "tag-reputation",
+      "name": "reputation"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "createdAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "v1-google-review-responder"
+}

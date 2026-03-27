@@ -1,0 +1,353 @@
+{
+  "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+  "name": "Social Media Generator — Pensiunea Stejarul",
+  "active": false,
+  "nodes": [
+    {
+      "id": "node-manual-trigger-social",
+      "name": "Manual Trigger (Demo)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {}
+    },
+    {
+      "id": "node-schedule-monday",
+      "name": "Schedule — Monday 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 460],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        },
+        "timezone": "Europe/Bucharest"
+      }
+    },
+    {
+      "id": "node-set-hotel-context",
+      "name": "Set Hotel Context + Date",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 300],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-ctx-1",
+              "name": "hotelName",
+              "value": "Pensiunea Stejarul",
+              "type": "string"
+            },
+            {
+              "id": "assign-ctx-2",
+              "name": "location",
+              "value": "Sinaia, Prahova",
+              "type": "string"
+            },
+            {
+              "id": "assign-ctx-3",
+              "name": "currentDate",
+              "value": "={{ $now.toFormat('dd MMMM yyyy') }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-ctx-4",
+              "name": "weekOf",
+              "value": "={{ $now.startOf('week').toFormat('yyyy-MM-dd') }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-ctx-5",
+              "name": "season",
+              "value": "={% set month = $now.month %}{% if month >= 12 or month <= 2 %}iarnă{% elseif month >= 3 and month <= 5 %}primăvară{% elseif month >= 6 and month <= 8 %}vară{% else %}toamnă{% endif %}",
+              "type": "string"
+            },
+            {
+              "id": "assign-ctx-6",
+              "name": "clientId",
+              "value": "00000000-0000-0000-0000-000000000001",
+              "type": "string",
+              "notes": "Replace with actual UUID from Supabase clients table after seeding"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-claude-social",
+      "name": "Claude — Generate 3 Social Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-opus-4-5\",\n  \"max_tokens\": 2048,\n  \"system\": \"Ești un specialist în social media pentru pensiuni și hoteluri boutique din România. Creezi conținut autentic, cald și vizual pentru Facebook și Instagram. Cunoști foarte bine zona Sinaia — păduri, teleschi, Castelul Peleș, Bucegi. Postările tale atrag turiști români și străini. Întotdeauna incluzi call-to-action și hashtag-uri relevante.\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Generează 3 postări pentru rețelele sociale (Facebook/Instagram) pentru {{ $json.hotelName }} din {{ $json.location }}.\\n\\nDate de context:\\n- Data curentă: {{ $json.currentDate }}\\n- Sezonul: {{ $json.season }}\\n- Camere: 6 duble (250 RON/noapte în săptămână, 350 RON weekend) + 1 apartament familie (450 RON/noapte, 600 RON weekend)\\n- Mic dejun inclus\\n- Check-in: 14:00, Check-out: 11:00\\n\\nInstrucțiuni:\\n1. Fiecare postare să fie între 80-150 de cuvinte\\n2. Ton cald, autentic, invitant — nu comercial agresiv\\n3. Variație: o postare despre experiența locului, una despre ofertă/preț, una sezonieră/inspirațională\\n4. Fiecare postare să aibă 5-8 hashtag-uri relevante\\n5. Cel puțin o postare în engleză (pentru turiști străini)\\n6. Include emoji-uri potrivite\\n\\nFormatul răspunsului — JSON strict, fără text în afara JSON-ului:\\n{\\\"posts\\\": [{\\\"id\\\": 1, \\\"platform\\\": \\\"Facebook/Instagram\\\", \\\"language\\\": \\\"ro\\\", \\\"text\\\": \\\"...\\\", \\\"hashtags\\\": [...]}, {\\\"id\\\": 2, ...}, {\\\"id\\\": 3, ...}]}\"\n    }\n  ]\n}",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-parse-posts",
+      "name": "Parse Posts JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 300],
+      "parameters": {
+        "jsCode": "const rawText = $input.item.json.content[0].text;\nconst tokensUsed = $input.item.json.usage.input_tokens + $input.item.json.usage.output_tokens;\n\n// Strip markdown code fences if Claude wrapped the JSON\nconst cleaned = rawText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n\nlet posts;\ntry {\n  const parsed = JSON.parse(cleaned);\n  posts = parsed.posts || [];\n} catch (e) {\n  // Fallback: return raw text as single post if JSON parse fails\n  posts = [{ id: 1, platform: 'Facebook/Instagram', language: 'ro', text: rawText, hashtags: [] }];\n}\n\nreturn [\n  {\n    json: {\n      posts,\n      tokensUsed,\n      weekOf: $('Set Hotel Context + Date').item.json.weekOf,\n      clientId: $('Set Hotel Context + Date').item.json.clientId,\n      generatedAt: new Date().toISOString()\n    }\n  }\n];"
+      }
+    },
+    {
+      "id": "node-format-wa-message",
+      "name": "Format WhatsApp Batch Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1140, 300],
+      "parameters": {
+        "jsCode": "const { posts, weekOf, generatedAt } = $input.item.json;\n\nlet message = `📱 *Conținut Social Media — Săptămâna ${weekOf}*\\n\\nAi 3 postări gata de publicat pentru Pensiunea Stejarul.\\nCopiază, ajustează dacă dorești, și postează!\\n\\n`;\n\nposts.forEach((post, index) => {\n  const flag = post.language === 'en' ? '🇬🇧' : '🇷🇴';\n  const hashtagStr = post.hashtags && post.hashtags.length\n    ? '\\n' + post.hashtags.map(h => h.startsWith('#') ? h : '#' + h).join(' ')\n    : '';\n  message += `━━━━━━━━━━━━━━━━━━━━\\n`;\n  message += `*Postarea ${index + 1}* ${flag} (${post.platform})\\n\\n`;\n  message += post.text;\n  message += hashtagStr;\n  message += `\\n\\n`;\n});\n\nmessage += `━━━━━━━━━━━━━━━━━━━━\\n_Generat de AutoPilot Ospitalitate · ${new Date(generatedAt).toLocaleString('ro-RO', {timeZone: 'Europe/Bucharest'})}_`;\n\nreturn [{ json: { waMessage: message, posts, weekOf, clientId: $input.item.json.clientId, tokensUsed: $input.item.json.tokensUsed } }];"
+      }
+    },
+    {
+      "id": "node-send-wa-batch",
+      "name": "Send Posts Batch to Owner WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1360, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $env.OWNER_PHONE_NUMBER_ID }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.META_OWNER_ACCESS_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $env.OWNER_WA_NUMBER }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": {{ JSON.stringify($json.waMessage) }}\n  }\n}",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-save-social-content",
+      "name": "Save to Supabase social_content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1580, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/social_content",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"client_id\": {{ JSON.stringify($json.clientId) }},\n  \"week_of\": {{ JSON.stringify($json.weekOf) }},\n  \"posts\": {{ JSON.stringify($json.posts) }},\n  \"delivered_at\": {{ JSON.stringify(new Date().toISOString()) }}\n}",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-log-social-audit",
+      "name": "Log to Supabase audit_log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1800, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/audit_log",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"client_id\": {{ JSON.stringify($('Parse Posts JSON').item.json.clientId) }},\n  \"workflow_name\": \"social-media-generator\",\n  \"event_type\": \"social_batch_delivered\",\n  \"payload\": {\n    \"week_of\": {{ JSON.stringify($('Parse Posts JSON').item.json.weekOf) }},\n    \"post_count\": {{ $('Parse Posts JSON').item.json.posts.length }},\n    \"tokens_used\": {{ $('Parse Posts JSON').item.json.tokensUsed }}\n  }\n}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger (Demo)": {
+      "main": [
+        [
+          {
+            "node": "Set Hotel Context + Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule — Monday 09:00": {
+      "main": [
+        [
+          {
+            "node": "Set Hotel Context + Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Hotel Context + Date": {
+      "main": [
+        [
+          {
+            "node": "Claude — Generate 3 Social Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude — Generate 3 Social Posts": {
+      "main": [
+        [
+          {
+            "node": "Parse Posts JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Posts JSON": {
+      "main": [
+        [
+          {
+            "node": "Format WhatsApp Batch Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format WhatsApp Batch Message": {
+      "main": [
+        [
+          {
+            "node": "Send Posts Batch to Owner WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Posts Batch to Owner WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Save to Supabase social_content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Supabase social_content": {
+      "main": [
+        [
+          {
+            "node": "Log to Supabase audit_log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Europe/Bucharest"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "id": "tag-social",
+      "name": "social-media"
+    },
+    {
+      "id": "tag-claude",
+      "name": "claude"
+    },
+    {
+      "id": "tag-content",
+      "name": "content-generation"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "createdAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "v1-social-media-generator"
+}
