@@ -11,7 +11,7 @@
       "position": [240, 300],
       "webhookId": "whatsapp-inbound-stejarul",
       "parameters": {
-        "httpMethod": "POST",
+        "httpMethod": "ALL",
         "path": "whatsapp-inbound",
         "responseMode": "responseNode",
         "options": {
@@ -330,7 +330,7 @@
       "position": [2220, 300],
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SUPABASE_URL }}/rest/v1/messages",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/audit_log",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -354,7 +354,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"client_id\": \"{{ $('Extract Claude Reply Text').item.json.clientId }}\",\n  \"direction\": \"outbound\",\n  \"content\": {{ JSON.stringify($('Extract Claude Reply Text').item.json.replyText) }},\n  \"claude_tokens_used\": {{ $('Extract Claude Reply Text').item.json.tokensUsed }}\n}",
+        "jsonBody": "={\n  \"workflow_name\": \"whatsapp-booking-bot\",\n  \"event_type\": \"message_processed\",\n  \"client_id\": \"{{ $('Extract Claude Reply Text').item.json.clientId }}\",\n  \"payload\": {\n    \"direction\": \"outbound\",\n    \"tokens_used\": {{ $('Extract Claude Reply Text').item.json.tokensUsed }}\n  }\n}",
         "options": {}
       }
     },

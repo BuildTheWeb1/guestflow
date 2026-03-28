@@ -141,8 +141,11 @@ check_env_var() {
 check_env_var "ANTHROPIC_API_KEY"          "sk-ant-api03-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 check_env_var "SUPABASE_URL"               "https://xxxxxxxxxxxxxxxxxxxx.supabase.co"
 check_env_var "SUPABASE_SERVICE_ROLE_KEY"  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xxxxxxxxxxxxxxxxxxxx"
-check_env_var "META_VERIFY_TOKEN"          "autopilot-demo-verify-2024"
+check_env_var "META_VERIFY_TOKEN"          ""
 check_env_var "META_APP_SECRET"            "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+check_env_var "OWNER_WA_NUMBER"            "40XXXXXXXXXX"
+check_env_var "OWNER_PHONE_NUMBER_ID"      "YOUR_META_PHONE_NUMBER_ID"
+check_env_var "META_OWNER_ACCESS_TOKEN"    "YOUR_META_ACCESS_TOKEN"
 
 # N8N_ENCRYPTION_KEY length check
 if [[ "${#N8N_ENCRYPTION_KEY}" -eq 32 ]]; then

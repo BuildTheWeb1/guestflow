@@ -8,7 +8,10 @@
       "name": "Manual Trigger (Demo)",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [240, 300],
+      "position": [
+        240,
+        300
+      ],
       "parameters": {}
     },
     {
@@ -16,7 +19,10 @@
       "name": "Schedule — Monday 09:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 460],
+      "position": [
+        240,
+        460
+      ],
       "parameters": {
         "rule": {
           "interval": [
@@ -34,7 +40,10 @@
       "name": "Set Hotel Context + Date",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [460, 300],
+      "position": [
+        460,
+        300
+      ],
       "parameters": {
         "mode": "manual",
         "duplicateItem": false,
@@ -67,7 +76,7 @@
             {
               "id": "assign-ctx-5",
               "name": "season",
-              "value": "={% set month = $now.month %}{% if month >= 12 or month <= 2 %}iarnă{% elseif month >= 3 and month <= 5 %}primăvară{% elseif month >= 6 and month <= 8 %}vară{% else %}toamnă{% endif %}",
+              "value": "={{ (() => { const m = $now.month; if (m === 12 || m <= 2) return 'iarnă'; if (m <= 5) return 'primăvară'; if (m <= 8) return 'vară'; return 'toamnă'; })() }}",
               "type": "string"
             },
             {
@@ -87,7 +96,10 @@
       "name": "Claude — Generate 3 Social Posts",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [700, 300],
+      "position": [
+        700,
+        300
+      ],
       "parameters": {
         "method": "POST",
         "url": "https://api.anthropic.com/v1/messages",
@@ -119,7 +131,10 @@
       "name": "Parse Posts JSON",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [920, 300],
+      "position": [
+        920,
+        300
+      ],
       "parameters": {
         "jsCode": "const rawText = $input.item.json.content[0].text;\nconst tokensUsed = $input.item.json.usage.input_tokens + $input.item.json.usage.output_tokens;\n\n// Strip markdown code fences if Claude wrapped the JSON\nconst cleaned = rawText.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n\nlet posts;\ntry {\n  const parsed = JSON.parse(cleaned);\n  posts = parsed.posts || [];\n} catch (e) {\n  // Fallback: return raw text as single post if JSON parse fails\n  posts = [{ id: 1, platform: 'Facebook/Instagram', language: 'ro', text: rawText, hashtags: [] }];\n}\n\nreturn [\n  {\n    json: {\n      posts,\n      tokensUsed,\n      weekOf: $('Set Hotel Context + Date').item.json.weekOf,\n      clientId: $('Set Hotel Context + Date').item.json.clientId,\n      generatedAt: new Date().toISOString()\n    }\n  }\n];"
       }
@@ -129,7 +144,10 @@
       "name": "Format WhatsApp Batch Message",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1140, 300],
+      "position": [
+        1140,
+        300
+      ],
       "parameters": {
         "jsCode": "const { posts, weekOf, generatedAt } = $input.item.json;\n\nlet message = `📱 *Conținut Social Media — Săptămâna ${weekOf}*\\n\\nAi 3 postări gata de publicat pentru Pensiunea Stejarul.\\nCopiază, ajustează dacă dorești, și postează!\\n\\n`;\n\nposts.forEach((post, index) => {\n  const flag = post.language === 'en' ? '🇬🇧' : '🇷🇴';\n  const hashtagStr = post.hashtags && post.hashtags.length\n    ? '\\n' + post.hashtags.map(h => h.startsWith('#') ? h : '#' + h).join(' ')\n    : '';\n  message += `━━━━━━━━━━━━━━━━━━━━\\n`;\n  message += `*Postarea ${index + 1}* ${flag} (${post.platform})\\n\\n`;\n  message += post.text;\n  message += hashtagStr;\n  message += `\\n\\n`;\n});\n\nmessage += `━━━━━━━━━━━━━━━━━━━━\\n_Generat de AutoPilot Ospitalitate · ${new Date(generatedAt).toLocaleString('ro-RO', {timeZone: 'Europe/Bucharest'})}_`;\n\nreturn [{ json: { waMessage: message, posts, weekOf, clientId: $input.item.json.clientId, tokensUsed: $input.item.json.tokensUsed } }];"
       }
@@ -139,7 +157,10 @@
       "name": "Send Posts Batch to Owner WhatsApp",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1360, 300],
+      "position": [
+        1360,
+        300
+      ],
       "parameters": {
         "method": "POST",
         "url": "=https://graph.facebook.com/v20.0/{{ $env.OWNER_PHONE_NUMBER_ID }}/messages",
@@ -167,7 +188,10 @@
       "name": "Save to Supabase social_content",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1580, 300],
+      "position": [
+        1580,
+        300
+      ],
       "parameters": {
         "method": "POST",
         "url": "={{ $env.SUPABASE_URL }}/rest/v1/social_content",
@@ -203,7 +227,10 @@
       "name": "Log to Supabase audit_log",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1800, 300],
+      "position": [
+        1800,
+        300
+      ],
       "parameters": {
         "method": "POST",
         "url": "={{ $env.SUPABASE_URL }}/rest/v1/audit_log",
