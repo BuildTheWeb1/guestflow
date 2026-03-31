@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# AutoPilot Ospitalitate — Pre-Demo End-to-End Test Checklist
+# GuestFlow — Pre-Demo End-to-End Test Checklist
 # =============================================================================
 # Usage: ./scripts/test-checklist.sh
 #
@@ -47,7 +47,7 @@ set +a
 
 echo ""
 echo -e "${BOLD}${BLUE}══════════════════════════════════════════════════════${RESET}"
-echo -e "${BOLD}${BLUE}  AutoPilot Ospitalitate — Pre-Demo Test Checklist${RESET}"
+echo -e "${BOLD}${BLUE}  GuestFlow — Pre-Demo Test Checklist${RESET}"
 echo -e "${BOLD}${BLUE}  $(date '+%Y-%m-%d %H:%M:%S %Z')${RESET}"
 echo -e "${BOLD}${BLUE}══════════════════════════════════════════════════════${RESET}"
 

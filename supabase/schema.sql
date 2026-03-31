@@ -1,5 +1,5 @@
 -- =============================================================================
--- AutoPilot Ospitalitate — Supabase Database Schema
+-- GuestFlow — Supabase Database Schema
 -- =============================================================================
 -- Run this in the Supabase SQL Editor for your project.
 -- Project: https://supabase.com → SQL Editor → New Query → paste & run.

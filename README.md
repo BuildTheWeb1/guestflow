@@ -1,4 +1,4 @@
-# GuestFlow — AutoPilot Ospitalitate
+# GuestFlow — GuestFlow
 
 AI automation for Romanian hotels and guesthouses. Three production-ready workflows built on n8n + Claude that handle guest communication, review management, and social media — so owners can focus on hospitality, not inbox management.
 

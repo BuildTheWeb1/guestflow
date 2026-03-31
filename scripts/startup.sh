@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# AutoPilot Ospitalitate — Demo Day Startup Script
+# GuestFlow — Demo Day Startup Script
 # =============================================================================
 # Usage: ./scripts/startup.sh
 #
@@ -31,7 +31,7 @@ RESET='\033[0m'
 print_header() {
     echo ""
     echo -e "${BOLD}${BLUE}══════════════════════════════════════════════════════${RESET}"
-    echo -e "${BOLD}${BLUE}  AutoPilot Ospitalitate — Demo Startup${RESET}"
+    echo -e "${BOLD}${BLUE}  GuestFlow — Demo Startup${RESET}"
     echo -e "${BOLD}${BLUE}══════════════════════════════════════════════════════${RESET}"
     echo ""
 }

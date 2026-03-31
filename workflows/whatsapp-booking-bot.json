@@ -8,7 +8,10 @@
       "name": "WhatsApp Inbound Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 300],
+      "position": [
+        240,
+        300
+      ],
       "webhookId": "whatsapp-inbound-stejarul",
       "parameters": {
         "httpMethod": "ALL",
@@ -24,7 +27,10 @@
       "name": "Handle GET Verification",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [460, 300],
+      "position": [
+        460,
+        300
+      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -41,6 +47,15 @@
                 "type": "string",
                 "operation": "equals"
               }
+            },
+            {
+              "id": "cond-2",
+              "leftValue": "={{ $json.query['hub.verify_token'] }}",
+              "rightValue": "={{ $env.META_VERIFY_TOKEN }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -52,7 +67,10 @@
       "name": "Respond to Meta Verification",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [680, 180],
+      "position": [
+        680,
+        180
+      ],
       "parameters": {
         "respondWith": "text",
         "responseBody": "={{ $('WhatsApp Inbound Webhook').item.json.query['hub.challenge'] }}",
@@ -66,7 +84,10 @@
       "name": "Parse WhatsApp Message",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 380],
+      "position": [
+        680,
+        380
+      ],
       "parameters": {
         "jsCode": "// Extract the inbound message from the Meta webhook payload.\n// Meta sends a nested structure: body.entry[0].changes[0].value.messages[0]\nconst body = $input.item.json.body;\n\nlet messageText = null;\nlet senderPhone = null;\nlet phoneNumberId = null;\nlet messageId = null;\n\ntry {\n  const entry = body.entry?.[0];\n  const change = entry?.changes?.[0];\n  const value = change?.value;\n  const message = value?.messages?.[0];\n  const contact = value?.contacts?.[0];\n\n  messageText = message?.text?.body || message?.interactive?.button_reply?.title || null;\n  senderPhone = message?.from || null;\n  phoneNumberId = value?.metadata?.phone_number_id || null;\n  messageId = message?.id || null;\n} catch (e) {\n  // Payload parsing failed — return empty so downstream IF node drops it\n}\n\nreturn [\n  {\n    json: {\n      messageText,\n      senderPhone,\n      phoneNumberId,\n      messageId,\n      rawBody: body\n    }\n  }\n];"
       }
@@ -76,7 +97,10 @@
       "name": "Check Message Exists",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [900, 380],
+      "position": [
+        900,
+        380
+      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -104,7 +128,10 @@
       "name": "ACK to Meta (200 OK)",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1120, 520],
+      "position": [
+        1120,
+        520
+      ],
       "parameters": {
         "respondWith": "json",
         "responseBody": "{\"status\":\"ignored\"}",
@@ -118,7 +145,10 @@
       "name": "Fetch Client from Supabase",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1120, 300],
+      "position": [
+        1120,
+        300
+      ],
       "parameters": {
         "method": "GET",
         "url": "={{ $env.SUPABASE_URL }}/rest/v1/clients",
@@ -160,7 +190,10 @@
       "name": "Set Claude Context",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [1340, 300],
+      "position": [
+        1340,
+        300
+      ],
       "parameters": {
         "mode": "manual",
         "duplicateItem": false,
@@ -212,7 +245,10 @@
       "name": "Claude — Generate Reply",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1560, 300],
+      "position": [
+        1560,
+        300
+      ],
       "parameters": {
         "method": "POST",
         "url": "https://api.anthropic.com/v1/messages",
@@ -247,7 +283,10 @@
       "name": "Extract Claude Reply Text",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [1780, 300],
+      "position": [
+        1780,
+        300
+      ],
       "parameters": {
         "mode": "manual",
         "duplicateItem": false,
@@ -299,7 +338,10 @@
       "name": "Send WhatsApp Reply",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2000, 300],
+      "position": [
+        2000,
+        300
+      ],
       "parameters": {
         "method": "POST",
         "url": "=https://graph.facebook.com/v20.0/{{ $json.phoneNumberId }}/messages",
@@ -327,7 +369,10 @@
       "name": "Log Message to Supabase",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2220, 300],
+      "position": [
+        2220,
+        300
+      ],
       "parameters": {
         "method": "POST",
         "url": "={{ $env.SUPABASE_URL }}/rest/v1/audit_log",
@@ -363,7 +408,10 @@
       "name": "Respond 200 OK to Meta",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2440, 300],
+      "position": [
+        2440,
+        300
+      ],
       "parameters": {
         "respondWith": "json",
         "responseBody": "{\"status\":\"ok\"}",
@@ -377,7 +425,10 @@
       "name": "Error Notification",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1560, 520],
+      "position": [
+        1560,
+        520
+      ],
       "parameters": {
         "method": "POST",
         "url": "=https://graph.facebook.com/v20.0/{{ $env.OWNER_PHONE_NUMBER_ID }}/messages",

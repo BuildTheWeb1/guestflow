@@ -1,5 +1,5 @@
 -- =============================================================================
--- AutoPilot Ospitalitate — Demo Seed Data
+-- GuestFlow — Demo Seed Data
 -- =============================================================================
 -- Run AFTER schema.sql.
 -- Inserts the demo hotel: Pensiunea Stejarul, Sinaia.
