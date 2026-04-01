@@ -85,6 +85,16 @@ services:
       - EXECUTIONS_DATA_MAX_AGE=168        # keep 7 days of logs (hours)
       - EXECUTIONS_DATA_PRUNE=true
 
+      # ── API keys (passed through so workflows can use $env.VAR) ─────────
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - META_APP_SECRET=${META_APP_SECRET}
+      - META_VERIFY_TOKEN=${META_VERIFY_TOKEN}
+      - OWNER_WA_NUMBER=${OWNER_WA_NUMBER}
+      - OWNER_PHONE_NUMBER_ID=${OWNER_PHONE_NUMBER_ID}
+      - META_OWNER_ACCESS_TOKEN=${META_OWNER_ACCESS_TOKEN}
+
       # ── Queue mode (disabled — demo uses regular/main mode) ───────────────
       # For production add: EXECUTIONS_MODE=queue + Redis service
     volumes:
