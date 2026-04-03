@@ -59,7 +59,7 @@ Build the **same automation package** repeatedly for businesses in one niche. Us
 
 ## The Automation Package
 
-**Product name:** "AutoPilot Ospitalitate"
+**Product name:** "GuestFlow"
 
 One package. One price. Sold to every pension/hotel in Romania.
 

@@ -1,4 +1,4 @@
-# AutoPilot Ospitalitate — Demo Implementation Plan (Localhost)
+# GuestFlow — Demo Implementation Plan (Localhost)
 
 **Goal:** Run the full demo stack on your local machine. No VPS, no domain purchase, no SSL config. External APIs (Claude, WhatsApp, Google, Supabase) are real — only the server moves to localhost.
 

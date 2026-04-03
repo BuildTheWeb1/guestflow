@@ -1,4 +1,4 @@
-# Code Review Report — AutoPilot Ospitalitate Demo Stack
+# Code Review Report — GuestFlow Demo Stack
 
 **Date:** 2026-03-27
 **Reviewer:** Claude Code

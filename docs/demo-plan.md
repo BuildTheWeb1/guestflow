@@ -1,4 +1,4 @@
-# AutoPilot Ospitalitate — Demo Plan
+# GuestFlow — Demo Plan
 
 **Goal:** A working, on-phone demo you can show a hotel/pension owner in a 20-minute conversation. No slides. No mockups. Real messages, real AI responses.
 
