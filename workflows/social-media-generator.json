@@ -93,7 +93,7 @@
     },
     {
       "id": "node-claude-social",
-      "name": "Claude — Generate 3 Social Posts",
+      "name": "Claude — Generate 2 Social Posts",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -122,7 +122,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"claude-opus-4-5\",\n  \"max_tokens\": 2048,\n  \"system\": \"Ești un specialist în social media pentru pensiuni și hoteluri boutique din România. Creezi conținut autentic, cald și vizual pentru Facebook și Instagram. Cunoști foarte bine zona Sinaia — păduri, teleschi, Castelul Peleș, Bucegi. Postările tale atrag turiști români și străini. Întotdeauna incluzi call-to-action și hashtag-uri relevante.\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Generează 3 postări pentru rețelele sociale (Facebook/Instagram) pentru {{ $json.hotelName }} din {{ $json.location }}.\\n\\nDate de context:\\n- Data curentă: {{ $json.currentDate }}\\n- Sezonul: {{ $json.season }}\\n- Camere: 6 duble (250 RON/noapte în săptămână, 350 RON weekend) + 1 apartament familie (450 RON/noapte, 600 RON weekend)\\n- Mic dejun inclus\\n- Check-in: 14:00, Check-out: 11:00\\n\\nInstrucțiuni:\\n1. Fiecare postare să fie între 80-150 de cuvinte\\n2. Ton cald, autentic, invitant — nu comercial agresiv\\n3. Variație: o postare despre experiența locului, una despre ofertă/preț, una sezonieră/inspirațională\\n4. Fiecare postare să aibă 5-8 hashtag-uri relevante\\n5. Cel puțin o postare în engleză (pentru turiști străini)\\n6. Include emoji-uri potrivite\\n\\nFormatul răspunsului — JSON strict, fără text în afara JSON-ului:\\n{\\\"posts\\\": [{\\\"id\\\": 1, \\\"platform\\\": \\\"Facebook/Instagram\\\", \\\"language\\\": \\\"ro\\\", \\\"text\\\": \\\"...\\\", \\\"hashtags\\\": [...]}, {\\\"id\\\": 2, ...}, {\\\"id\\\": 3, ...}]}\"\n    }\n  ]\n}",
+        "jsonBody": "={\n  \"model\": \"claude-opus-4-5\",\n  \"max_tokens\": 1024,\n  \"system\": \"Ești un specialist în social media pentru pensiuni și hoteluri boutique din România. Creezi conținut autentic, cald și vizual pentru Facebook și Instagram. Cunoști foarte bine zona Sinaia — păduri, teleschi, Castelul Peleș, Bucegi. Postările tale atrag turiști români și străini. Întotdeauna incluzi call-to-action și hashtag-uri relevante.\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Generează 2 postări pentru rețelele sociale (Facebook/Instagram) pentru {{ $json.hotelName }} din {{ $json.location }}.\\n\\nDate de context:\\n- Data curentă: {{ $json.currentDate }}\\n- Sezonul: {{ $json.season }}\\n- Camere: 6 duble (250 RON/noapte în săptămână, 350 RON weekend) + 1 apartament familie (450 RON/noapte, 600 RON weekend)\\n- Mic dejun inclus\\n- Check-in: 14:00, Check-out: 11:00\\n\\nInstrucțiuni:\\n1. Fiecare postare să fie între 80-150 de cuvinte\\n2. Ton cald, autentic, invitant — nu comercial agresiv\\n3. Prima postare în română, a doua în engleză\\n4. Fiecare postare să aibă 5-8 hashtag-uri relevante\\n5. Include emoji-uri potrivite\\n\\nFormatul răspunsului — JSON strict, fără text în afara JSON-ului:\\n{\\\"posts\\\": [{\\\"id\\\": 1, \\\"platform\\\": \\\"Facebook/Instagram\\\", \\\"language\\\": \\\"ro\\\", \\\"text\\\": \\\"...\\\", \\\"hashtags\\\": [...]}, {\\\"id\\\": 2, \\\"platform\\\": \\\"Facebook/Instagram\\\", \\\"language\\\": \\\"en\\\", \\\"text\\\": \\\"...\\\", \\\"hashtags\\\": [...]}]}\"\n    }\n  ]\n}",
         "options": {}
       }
     },
@@ -149,7 +149,7 @@
         300
       ],
       "parameters": {
-        "jsCode": "const { posts, weekOf, generatedAt } = $input.item.json;\n\nlet message = `📱 *Conținut Social Media — Săptămâna ${weekOf}*\\n\\nAi 3 postări gata de publicat pentru Pensiunea Stejarul.\\nCopiază, ajustează dacă dorești, și postează!\\n\\n`;\n\nposts.forEach((post, index) => {\n  const flag = post.language === 'en' ? '🇬🇧' : '🇷🇴';\n  const hashtagStr = post.hashtags && post.hashtags.length\n    ? '\\n' + post.hashtags.map(h => h.startsWith('#') ? h : '#' + h).join(' ')\n    : '';\n  message += `━━━━━━━━━━━━━━━━━━━━\\n`;\n  message += `*Postarea ${index + 1}* ${flag} (${post.platform})\\n\\n`;\n  message += post.text;\n  message += hashtagStr;\n  message += `\\n\\n`;\n});\n\nmessage += `━━━━━━━━━━━━━━━━━━━━\\n_Generat de GuestFlow · ${new Date(generatedAt).toLocaleString('ro-RO', {timeZone: 'Europe/Bucharest'})}_`;\n\nreturn [{ json: { waMessage: message, posts, weekOf, clientId: $input.item.json.clientId, tokensUsed: $input.item.json.tokensUsed } }];"
+        "jsCode": "const { posts, weekOf, generatedAt } = $input.item.json;\n\nlet message = `📱 *Conținut Social Media — Săptămâna ${weekOf}*\\n\\nAi 2 postări gata de publicat pentru Pensiunea Stejarul.\\nCopiază, ajustează dacă dorești, și postează!\\n\\n`;\n\nposts.forEach((post, index) => {\n  const flag = post.language === 'en' ? '🇬🇧' : '🇷🇴';\n  const hashtagStr = post.hashtags && post.hashtags.length\n    ? '\\n' + post.hashtags.map(h => h.startsWith('#') ? h : '#' + h).join(' ')\n    : '';\n  message += `━━━━━━━━━━━━━━━━━━━━\\n`;\n  message += `*Postarea ${index + 1}* ${flag} (${post.platform})\\n\\n`;\n  message += post.text;\n  message += hashtagStr;\n  message += `\\n\\n`;\n});\n\nmessage += `━━━━━━━━━━━━━━━━━━━━\\n_Generat de GuestFlow · ${new Date(generatedAt).toLocaleString('ro-RO', {timeZone: 'Europe/Bucharest'})}_`;\n\nreturn [{ json: { waMessage: message, posts, weekOf, clientId: $input.item.json.clientId, tokensUsed: $input.item.json.tokensUsed } }];"
       }
     },
     {
@@ -218,7 +218,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"client_id\": {{ JSON.stringify($json.clientId) }},\n  \"week_of\": {{ JSON.stringify($json.weekOf) }},\n  \"posts\": {{ JSON.stringify($json.posts) }},\n  \"delivered_at\": {{ JSON.stringify(new Date().toISOString()) }}\n}",
+        "jsonBody": "={\n  \"client_id\": {{ JSON.stringify($('Format WhatsApp Batch Message').item.json.clientId) }},\n  \"week_of\": {{ JSON.stringify($('Format WhatsApp Batch Message').item.json.weekOf) }},\n  \"posts\": {{ JSON.stringify($('Format WhatsApp Batch Message').item.json.posts) }},\n  \"delivered_at\": {{ JSON.stringify(new Date().toISOString()) }}\n}",
         "options": {}
       }
     },
@@ -289,14 +289,14 @@
       "main": [
         [
           {
-            "node": "Claude — Generate 3 Social Posts",
+            "node": "Claude — Generate 2 Social Posts",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Claude — Generate 3 Social Posts": {
+    "Claude — Generate 2 Social Posts": {
       "main": [
         [
           {

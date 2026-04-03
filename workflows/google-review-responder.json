@@ -272,7 +272,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $env.OWNER_WA_NUMBER }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"📝 *Răspuns draft Google Review*\\n\\n👤 Recenzent: {{ $json.reviewerName }}\\n⭐ Rating: {{ $json.starRating }}\\n\\n✉️ *Răspuns propus:*\\n\\n{{ $json.draftReply }}\\n\\n---\\nAprobați și postați manual în Google My Business sau răspundeți APROB pentru postare automată.\"\n  }\n}",
+        "jsonBody": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $env.OWNER_WA_NUMBER }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": {{ JSON.stringify(\"📝 *Răspuns draft Google Review*\\n\\n👤 Recenzent: \" + $json.reviewerName + \"\\n⭐ Rating: \" + $json.starRating + \"\\n\\n✉️ *Răspuns propus:*\\n\\n\" + $json.draftReply + \"\\n\\n---\\nAprobați și postați manual în Google My Business sau răspundeți APROB pentru postare automată.\") }}\n  }\n}",
         "options": {}
       }
     },
