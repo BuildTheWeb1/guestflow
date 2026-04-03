@@ -85,6 +85,9 @@ services:
       - EXECUTIONS_DATA_MAX_AGE=168        # keep 7 days of logs (hours)
       - EXECUTIONS_DATA_PRUNE=true
 
+      # ── Allow workflows to read environment variables via $env ───────────
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+
       # ── API keys (passed through so workflows can use $env.VAR) ─────────
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - SUPABASE_URL=${SUPABASE_URL}
