@@ -10,16 +10,33 @@
       "typeVersion": 2,
       "position": [
         240,
-        300
+        380
       ],
       "webhookId": "whatsapp-inbound-stejarul",
       "parameters": {
-        "httpMethod": "ALL",
+        "httpMethod": "POST",
         "path": "whatsapp-inbound",
         "responseMode": "responseNode",
         "options": {
           "rawBody": true
         }
+      }
+    },
+    {
+      "id": "node-webhook-verify",
+      "name": "WhatsApp Verification Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        180
+      ],
+      "webhookId": "whatsapp-verify-stejarul",
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "whatsapp-inbound",
+        "responseMode": "responseNode",
+        "options": {}
       }
     },
     {
@@ -73,7 +90,7 @@
       ],
       "parameters": {
         "respondWith": "text",
-        "responseBody": "={{ $('WhatsApp Inbound Webhook').item.json.query['hub.challenge'] }}",
+        "responseBody": "={{ $('WhatsApp Verification Webhook').item.json.query['hub.challenge'] }}",
         "options": {
           "responseCode": 200
         }
@@ -106,7 +123,7 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "loose"
           },
           "conditions": [
             {
@@ -457,25 +474,18 @@
       "main": [
         [
           {
-            "node": "Handle GET Verification",
+            "node": "Parse WhatsApp Message",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Handle GET Verification": {
+    "WhatsApp Verification Webhook": {
       "main": [
         [
           {
             "node": "Respond to Meta Verification",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Parse WhatsApp Message",
             "type": "main",
             "index": 0
           }
