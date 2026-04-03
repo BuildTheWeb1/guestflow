@@ -234,7 +234,7 @@
             {
               "id": "assign-2",
               "name": "systemPrompt",
-              "value": "={{ $json.system_prompt }}",
+              "value": "={{ $json.system_prompt + '\\n\\nCurrent date: ' + $now.toFormat('dd MMMM yyyy') + '\\nCurrent time: ' + $now.toFormat('HH:mm') + '\\n\\nWhen greeting a user, always use the appropriate time-of-day salutation in Romanian based on the current time: \"Bună dimineața\" (00:00–11:59), \"Bună ziua\" (12:00–17:59), \"Bună seara\" (18:00–23:59). Mirror the language register (formal/informal) the user uses.' }}",
               "type": "string"
             },
             {
@@ -267,12 +267,25 @@
       }
     },
     {
+      "id": "node-manage-conversation",
+      "name": "Manage Conversation & Fetch History",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const supabaseUrl = $env.SUPABASE_URL;\nconst key = $env.SUPABASE_SERVICE_ROLE_KEY;\nconst clientId = $json.clientId;\nconst senderPhone = $json.senderPhone;\nconst userMessage = $json.userMessage;\n\nconst headers = {\n  apikey: key,\n  Authorization: `Bearer ${key}`,\n  'Content-Type': 'application/json'\n};\n\n// 1. Find existing active conversation\nconst existing = await $helpers.httpRequest({\n  method: 'GET',\n  url: `${supabaseUrl}/rest/v1/conversations`,\n  headers: { apikey: key, Authorization: `Bearer ${key}` },\n  qs: {\n    client_id: `eq.${clientId}`,\n    guest_wa_number: `eq.${senderPhone}`,\n    status: 'eq.active',\n    select: 'id',\n    limit: '1'\n  }\n});\n\nlet conversationId;\nif (existing.length > 0) {\n  conversationId = existing[0].id;\n} else {\n  // 2. Create new conversation\n  const created = await $helpers.httpRequest({\n    method: 'POST',\n    url: `${supabaseUrl}/rest/v1/conversations`,\n    headers: { ...headers, Prefer: 'return=representation' },\n    body: {\n      client_id: clientId,\n      guest_wa_number: senderPhone,\n      status: 'active',\n      message_count: 0,\n      last_message_at: new Date().toISOString()\n    }\n  });\n  conversationId = created[0].id;\n}\n\n// 3. Save inbound message\nawait $helpers.httpRequest({\n  method: 'POST',\n  url: `${supabaseUrl}/rest/v1/messages`,\n  headers: { ...headers, Prefer: 'return=minimal' },\n  body: {\n    conversation_id: conversationId,\n    direction: 'inbound',\n    content: userMessage\n  }\n});\n\n// 4. Fetch last 10 messages for history\nconst history = await $helpers.httpRequest({\n  method: 'GET',\n  url: `${supabaseUrl}/rest/v1/messages`,\n  headers: { apikey: key, Authorization: `Bearer ${key}` },\n  qs: {\n    conversation_id: `eq.${conversationId}`,\n    order: 'created_at.asc',\n    limit: '11',\n    select: 'direction,content'\n  }\n});\n\n// Format as Claude multi-turn messages (drop last — it's the inbound just saved)\nconst claudeMessages = history.slice(0, -1).map(msg => ({\n  role: msg.direction === 'inbound' ? 'user' : 'assistant',\n  content: msg.content\n}));\nclaudeMessages.push({ role: 'user', content: userMessage });\n\nreturn [{ json: { ...$json, conversationId, claudeMessages } }];"
+      }
+    },
+    {
       "id": "node-claude-api",
       "name": "Claude — Generate Reply",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1560,
+        1780,
         300
       ],
       "parameters": {
@@ -300,7 +313,7 @@
           "parameters": []
         },
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"claude-opus-4-5\",\n  \"max_tokens\": 1024,\n  \"system\": {{ JSON.stringify($json.systemPrompt || 'Ești un asistent virtual pentru hotel. Ajuți oaspeții cu rezervări și întrebări.') }},\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": {{ JSON.stringify($json.userMessage) }}\n    }\n  ]\n}",
+        "jsonBody": "={\n  \"model\": \"claude-opus-4-5\",\n  \"max_tokens\": 1024,\n  \"system\": {{ JSON.stringify($json.systemPrompt || 'Ești un asistent virtual pentru hotel. Ajuți oaspeții cu rezervări și întrebări.') }},\n  \"messages\": {{ JSON.stringify($json.claudeMessages) }}\n}",
         "options": {}
       }
     },
@@ -310,7 +323,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1780,
+        2000,
         300
       ],
       "parameters": {
@@ -365,7 +378,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2000,
+        2220,
         300
       ],
       "parameters": {
@@ -391,12 +404,51 @@
       }
     },
     {
+      "id": "node-save-outbound",
+      "name": "Save Outbound Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2440,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"conversation_id\": \"{{ $('Manage Conversation & Fetch History').item.json.conversationId }}\",\n  \"direction\": \"outbound\",\n  \"content\": \"{{ $('Extract Claude Reply Text').item.json.replyText }}\",\n  \"claude_tokens_used\": {{ $('Extract Claude Reply Text').item.json.tokensUsed }}\n}",
+        "options": {}
+      }
+    },
+    {
       "id": "node-log-supabase",
       "name": "Log Message to Supabase",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2220,
+        2660,
         300
       ],
       "parameters": {
@@ -435,7 +487,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        2440,
+        2880,
         300
       ],
       "parameters": {
@@ -556,6 +608,17 @@
       "main": [
         [
           {
+            "node": "Manage Conversation & Fetch History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manage Conversation & Fetch History": {
+      "main": [
+        [
+          {
             "node": "Claude — Generate Reply",
             "type": "main",
             "index": 0
@@ -586,6 +649,17 @@
       ]
     },
     "Send WhatsApp Reply": {
+      "main": [
+        [
+          {
+            "node": "Save Outbound Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Outbound Message": {
       "main": [
         [
           {
